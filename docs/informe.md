@@ -1,16 +1,16 @@
 # Parcial 3 · Ingeniería de Software I — EnvíaYa
 
-**Estudiante:** _(tu nombre completo)_
+**Estudiante:** _vicente rivadeneira_
 **Código estudiantil:** 0182220060
-**Repositorio:** https://github.com/TU_USUARIO/envios-ya
+**Repositorio:** https://github.com/Vicenz111/envios-ya
 
 ## Mis parámetros
 
 Últimos 6 dígitos del código: **220060**
 
-| A | B | C | D | E | F | PMAX | L1 | L2 | RR | RN | V | S | CAMBIO |
-|---|---|---|---|---|---|------|----|----|----|----|---|---|--------|
-| 2 | 2 | 0 | 0 | 6 | 0 | 40 kg | 4 kg | 10 kg | 20 % | 40 % | 20 % | $2.000 | 2 (hora pico) |
+| A | B | C | D | E | F | PMAX   | L1   | L2    | RR   | RN   | V    | S      | CAMBIO |
+|---|---|---|---|---|---|------  |----  |----   |----  |----  |---   |---     |--------|
+| 2 | 2 | 0 | 0 | 6 | 0 | 40 kg  | 4 kg | 10 kg | 20 % | 40 % | 20 % | $2.000 | 2 (hora pico) |
 
 | Parámetro | Fórmula | Cálculo | Valor |
 |---|---|---|---|
@@ -127,3 +127,101 @@ _(La columna de casos de prueba se completa en la Parte 3.)_
 | R6 · Descuento cliente/cupón | HU-03 | CA-03.1, CA-03.2, CA-03.5 | _pendiente Parte 3_ |
 | R7 · Cupón inexistente | HU-03 | CA-03.3 | _pendiente Parte 3_ |
 | R8 · Mínimo y redondeo | HU-03 | CA-03.4, CA-03.5 | _pendiente Parte 3_ |
+
+---
+
+## Parte 2 · Plan de pruebas
+
+### 2.1 Alcance
+
+**Objeto de prueba:** la función `calc` del módulo `envios.py` en el código heredado (v1.0.0) y en las versiones que salgan después de la corrección, la refactorización y la solicitud de cambio.
+
+**Dentro del alcance**
+
+- Las reglas de negocio R1 a R8 con los parámetros del estudiante 0182220060 (PMAX = 40, L1 = 4, L2 = 10, RR = 20 %, RN = 40 %, V = 20 %, S = $2.000).
+- Las validaciones de entrada (peso, zona, día) y los errores que se lanzan.
+- La interacción de cliente, cupón y fin de semana (reglas B, E y F).
+- La solicitud de cambio de la Parte 8 (recargo de hora pico).
+- Las pruebas de regresión después de cada corrección y de la refactorización.
+
+**Fuera del alcance**
+
+- Interfaz gráfica, base de datos, facturación y demás módulos de EnvíaYa.
+- Pruebas de rendimiento, carga y seguridad.
+- Tipos de cliente distintos de normal, frecuente y VIP (ver supuesto S1).
+
+### 2.2 Niveles de prueba aplicados a este caso
+
+| Nivel | Qué se prueba en EnvíaYa | Cómo se aplica | Técnica |
+|---|---|---|---|
+| **Unidad** | Cada función por separado. Antes del refactor: `calc`. Después: `tarifa_base`, `recargo_zona`, `recargo_fin_de_semana`, `aplicar_descuento`, `redondear` y cada clase Estrategia. | Pruebas `pytest` parametrizadas que llaman a una sola función con entradas controladas. | Caja negra (particiones, valores límite) y caja blanca (caminos, ramas). |
+| **Integración** | Que las funciones extraídas y las estrategias trabajen juntas en el orden correcto: base → zona → fin de semana → descuento → mínimo → redondeo. | Integración ascendente (bottom-up): primero se prueban las piezas y después la función principal `calcular_costo`, que las compone. Casos que combinan varias reglas a la vez (ej. 4 kg, rural, VIP, sábado, ENVIO10 = $7.400). | Tabla de decisión, casos combinados. |
+| **Sistema** | El módulo completo contra toda la especificación R1–R8, incluido el manejo de errores, como lo usaría el sistema de EnvíaYa. | Ejecución de la suite completa desde la terminal con medición de cobertura: `pytest -v --cov=envios --cov-branch`. Se repite como regresión después de cada `merge`. | Matriz completa de casos (mínimo 20). |
+| **Aceptación** | Que se cumplan los criterios Dado / Cuando / Entonces de HU-01, HU-02 y HU-03. | Cada criterio de aceptación se automatiza como prueba marcada `@pytest.mark.aceptacion`. El dueño del producto (EnvíaYa, representado por el docente) los valida en la sustentación. | Pruebas basadas en historias de usuario. |
+
+### 2.3 Estrategia, ambiente y roles
+
+**Estrategia**
+
+1. **Basada en riesgos y en requisitos:** cada regla R1–R8 tiene al menos un caso de prueba (matriz de trazabilidad), y las reglas que dependen de mi código estudiantil (tramo 1, fin de semana, cliente + cupón, cupón inexistente) se prueban con más casos.
+2. **Caja negra primero:** particiones de equivalencia, valores límite y tabla de decisión (Parte 3). El resultado esperado se calcula a mano, sin mirar el código.
+3. **Caja blanca después:** grafo de flujo, complejidad ciclomática, caminos independientes y cobertura de sentencias y ramas (Parte 4).
+4. **Automatización total** con `pytest` y `@pytest.mark.parametrize`. Todas las pruebas se ejecutan primero contra v1.0.0 para dejar evidencia de los defectos.
+5. **Corrección guiada por pruebas:** cada defecto se corrige en su propia rama `fix/DEF-xx`, con la prueba que lo reproduce fallando antes de corregir.
+6. **Regresión:** la suite completa se ejecuta después de cada corrección, de la refactorización y de cada `merge` a `main`.
+
+**Ambiente**
+
+| Elemento | Detalle |
+|---|---|
+| Sistema operativo | Windows (equipo del estudiante) |
+| Lenguaje | Python 3 en entorno virtual `.venv` |
+| Herramientas de prueba | `pytest`, `pytest-cov` (versiones fijadas en `requirements.txt`) |
+| Editor | Visual Studio Code |
+| Control de versiones | Git + GitHub (repositorio `envios-ya`) |
+| Datos de prueba | Tabla de casos de la Parte 3 con resultados esperados calculados a mano |
+| Comando de ejecución | `pytest -v --cov=envios --cov-branch --cov-report=term-missing --cov-report=html` |
+
+**Roles** _(en este parcial una misma persona los cumple todos)_
+
+| Rol | Responsabilidad |
+|---|---|
+| Líder de calidad | Elabora el plan, define criterios de entrada y salida, calcula las métricas. |
+| Analista de pruebas | Diseña los casos de caja negra y caja blanca y calcula los resultados esperados. |
+| Ingeniero de automatización | Implementa la suite en `pytest` y mide la cobertura. |
+| Desarrollador de mantenimiento | Corrige los defectos, refactoriza e implementa la solicitud de cambio. |
+| Gestor de configuración | Administra ramas, etiquetas, versionado semántico y CHANGELOG. |
+| Dueño del producto (EnvíaYa / docente) | Aprueba la especificación y acepta la versión final en la sustentación. |
+
+### 2.4 Riesgos y mitigación
+
+| ID | Riesgo | Prob. | Impacto | Mitigación |
+|---|---|---|---|---|
+| RG-01 | Un resultado esperado mal calculado a mano produce una prueba falsa (falla un código correcto o pasa uno incorrecto). | Media | Alto | Cálculo paso a paso documentado en el informe; verificación cruzada con el ejemplo del enunciado ($7.400). |
+| RG-02 | Errores de punto flotante en porcentajes y redondeo (ej. 8.549,999… en lugar de 8.550). | Media | Alto | Casos justo en el borde del redondeo ($50); en el código corregido, redondeo explícito y controlado. |
+| RG-03 | Ambigüedades en la especificación (cliente no listado, texto del mensaje de error). | Media | Medio | Supuestos S1 y S2 documentados en la Parte 1; las pruebas de error verifican el tipo de excepción. |
+| RG-04 | La refactorización introduce regresiones. | Media | Alto | Refactorizar solo con la suite en verde, en commits pequeños, y ejecutar la regresión completa después de cada paso. |
+| RG-05 | Quitar el argumento `flag` rompe el código que llama a `calc`. | Alta | Medio | Versión MAJOR según versionado semántico y nota en el CHANGELOG. |
+| RG-06 | Conflictos al integrar las ramas `fix/DEF-xx`. | Media | Medio | Ramas cortas, integración frecuente a `main` y regresión después de cada `merge`. |
+| RG-07 | El tiempo no alcanza (la entrega es el mismo día). | Alta | Alto | Priorizar los defectos por severidad; usar `parametrize` para automatizar rápido; commits a lo largo del día. |
+| RG-08 | El ambiente de la sustentación es distinto al del desarrollo. | Baja | Alto | `requirements.txt`, entorno virtual e instrucciones de ejecución en el README. |
+
+### 2.5 Criterios de entrada y de salida
+
+**Criterios de entrada** (para empezar a ejecutar pruebas)
+
+- La especificación R1–R8 está escrita con mis parámetros y verificada contra el código estudiantil.
+- El código heredado está en el repositorio con la etiqueta `v1.0.0` y el `CONFIG` lleno.
+- El ambiente está instalado: `.venv`, `pytest` y `pytest-cov` funcionando.
+- Los casos de prueba de la Parte 3 están diseñados y cada uno tiene su resultado esperado calculado a mano.
+
+**Criterios de salida** (para dar por terminada la prueba y publicar la versión)
+
+- El 100 % de los casos diseñados se ejecutaron.
+- El 100 % de los casos pasan en la versión final.
+- Todos los defectos reportados están corregidos y cerrados (0 defectos abiertos de severidad crítica o alta).
+- La cobertura de sentencias es del 100 % y la de ramas al menos del 95 % sobre el código final.
+- Cada requisito R1–R8 tiene al menos un caso de prueba en la matriz de trazabilidad.
+- La regresión está en verde después del último `merge`, y la versión está etiquetada y documentada en el CHANGELOG.
+
+**Criterios de suspensión:** se detiene la ejecución si el ambiente no permite importar el módulo o si se encuentra un error en la especificación. Se reanuda cuando se corrige.
