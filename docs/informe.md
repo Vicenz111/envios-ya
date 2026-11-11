@@ -225,3 +225,196 @@ _(La columna de casos de prueba se completa en la Parte 3.)_
 - La regresión está en verde después del último `merge`, y la versión está etiquetada y documentada en el CHANGELOG.
 
 **Criterios de suspensión:** se detiene la ejecución si el ambiente no permite importar el módulo o si se encuentra un error en la especificación. Se reanuda cuando se corrige.
+
+
+---
+
+## Parte 3 · Diseño de casos de caja negra
+
+Los resultados esperados de esta parte se calcularon a mano a partir de la especificación (Parte 1), **sin mirar el código**.
+
+### 3.1 Particiones de equivalencia
+
+| Entrada | ID | Clase | Tipo | Representante |
+|---|---|---|---|---|
+| **peso** | PE-P1 | 0 < peso ≤ 4 (tramo 1) | Válida | 2 kg |
+| | PE-P2 | 4 < peso ≤ 10 (tramo 2) | Válida | 6 kg |
+| | PE-P3 | 10 < peso ≤ 40 (tramo 3, proporcional) | Válida | 12,5 kg |
+| | PE-P4 | peso ≤ 0 | Inválida | −5 kg |
+| | PE-P5 | peso > 40 | Inválida | 45 kg |
+| **zona** | PE-Z1 | urbana | Válida | "urbana" |
+| | PE-Z2 | rural | Válida | "rural" |
+| | PE-Z3 | nacional | Válida | "nacional" |
+| | PE-Z4 | cualquier otro valor | Inválida | "insular" |
+| **cliente** | PE-C1 | normal | Válida | "normal" |
+| | PE-C2 | frecuente | Válida | "frecuente" |
+| | PE-C3 | vip | Válida | "vip" |
+| **dia** | PE-D1 | 1 ≤ dia ≤ 5 (entre semana) | Válida | 2 |
+| | PE-D2 | 6 ≤ dia ≤ 7 (fin de semana) | Válida | 6 |
+| | PE-D3 | dia < 1 | Inválida | 0 |
+| | PE-D4 | dia > 7 | Inválida | 8 |
+| **cupon** | PE-K1 | sin cupón (None) | Válida | None |
+| | PE-K2 | "ENVIO10" | Válida | "ENVIO10" |
+| | PE-K3 | cupón que no existe (regla F par: se ignora) | Válida | "GRATIS" |
+
+_Nota:_ un cliente distinto de normal, frecuente o VIP no se prueba como clase porque la especificación no define su comportamiento (supuesto S1).
+
+### 3.2 Valores límite del peso
+
+Precisión usada: 0,01 kg. Para cada límite se prueba el valor justo antes, el límite y el valor justo después. Las pruebas usan zona urbana, cliente normal, día 1 y sin cupón, para que solo cambie el peso.
+
+| Límite | Valor | ¿Dónde cae? | Resultado esperado | Caso |
+|---|---|---|---|---|
+| **0** | 0 | Inválido (0 no cumple 0 < peso) | Error "peso inválido" | CP-01 |
+| | 0,01 | Tramo 1 | $6.000 | CP-02 |
+| **L1 = 4** (incluido, D = 0 par) | 3,99 | Tramo 1 | $6.000 | CP-04 |
+| | **4** | **Tramo 1 (peso ≤ 4)** | $6.000 | CP-05 |
+| | 4,01 | Tramo 2 | $9.000 | CP-06 |
+| **L2 = 10** (incluido) | 9,99 | Tramo 2 | $9.000 | CP-07 |
+| | 10 | Tramo 2 | $9.000 | CP-08 |
+| | 10,01 | Tramo 3: 9.000 + 0,01 × 800 = 9.008 | $9.000 | CP-09 |
+| **PMAX = 40** (incluido) | 39,99 | Tramo 3: 9.000 + 29,99 × 800 = 32.992 | $33.000 | CP-11 |
+| | 40 | Tramo 3: 9.000 + 30 × 800 = 33.000 | $33.000 | CP-12 |
+| | 40,01 | Inválido (peso > 40) | Error "peso inválido" | CP-13 |
+
+Como mi D = 0 es par, **4 kg pertenece al tramo 1**. Si fuera impar, 4 kg iría al tramo 2 y costaría $9.000.
+
+### 3.3 Tabla de decisión: cliente × cupón × fin de semana
+
+Reglas que aplican: **B = 2 par** (solo el mayor descuento), **E = 6 par** (el recargo de fin de semana va antes del descuento) y **F = 0 par** (el cupón inexistente se ignora).
+
+Base fija para comparar: 6 kg, zona urbana → $9.000 entre semana; $9.000 + $2.000 = $11.000 en fin de semana.
+
+| Regla | Cliente | Cupón | ¿Fin de semana? | Descuento aplicado | Cálculo | Resultado esperado |
+|---|---|---|---|---|---|---|
+| TD-01 | normal | sin | No | 0 % | 9.000 | $9.000 |
+| TD-02 | normal | sin | Sí | 0 % | 11.000 | $11.000 |
+| TD-03 | normal | ENVIO10 | No | 10 % (cupón) | 9.000 × 0,90 = 8.100 | $8.100 |
+| TD-04 | normal | ENVIO10 | Sí | 10 % (cupón) | 11.000 × 0,90 = 9.900 | $9.900 |
+| TD-05 | normal | inexistente | No | 0 % (se ignora) | 9.000 | $9.000 |
+| TD-06 | normal | inexistente | Sí | 0 % (se ignora) | 11.000 | $11.000 |
+| TD-07 | frecuente | sin | No | 5 % | 9.000 × 0,95 = 8.550 | $8.600 |
+| TD-08 | frecuente | sin | Sí | 5 % | 11.000 × 0,95 = 10.450 | $10.500 |
+| TD-09 | frecuente | ENVIO10 | No | 10 % (mayor: cupón) | 9.000 × 0,90 = 8.100 | $8.100 |
+| TD-10 | frecuente | ENVIO10 | Sí | 10 % (mayor: cupón) | 11.000 × 0,90 = 9.900 | $9.900 |
+| TD-11 | frecuente | inexistente | No | 5 % | 9.000 × 0,95 = 8.550 | $8.600 |
+| TD-12 | frecuente | inexistente | Sí | 5 % | 11.000 × 0,95 = 10.450 | $10.500 |
+| TD-13 | vip | sin | No | 20 % | 9.000 × 0,80 = 7.200 | $7.200 |
+| TD-14 | vip | sin | Sí | 20 % | 11.000 × 0,80 = 8.800 | $8.800 |
+| TD-15 | vip | ENVIO10 | No | 20 % (mayor: VIP) | 9.000 × 0,80 = 7.200 | $7.200 |
+| TD-16 | vip | ENVIO10 | Sí | 20 % (mayor: VIP) | 11.000 × 0,80 = 8.800 | $8.800 |
+| TD-17 | vip | inexistente | No | 20 % | 9.000 × 0,80 = 7.200 | $7.200 |
+| TD-18 | vip | inexistente | Sí | 20 % | 11.000 × 0,80 = 8.800 | $8.800 |
+
+**Observaciones de la tabla**
+
+- Por la regla F, el cupón inexistente se comporta igual que "sin cupón": TD-05 = TD-01, TD-11 = TD-07 y TD-17 = TD-13. La tabla se podría reducir de 18 a 12 reglas.
+- Por la regla B, un cliente VIP con ENVIO10 paga lo mismo que sin cupón (TD-15 = TD-13), y un cliente frecuente con ENVIO10 paga lo mismo que uno normal con ENVIO10 (TD-09 = TD-03).
+- Como el recargo va antes del descuento (regla E), el descuento también se aplica sobre los $2.000. Si fuera después, TD-14 daría 9.000 × 0,8 + 2.000 = $9.200 y no $8.800.
+
+### 3.4 Matriz de casos de prueba
+
+Si no se indica otra cosa: zona urbana, cliente normal, día 1 y sin cupón.
+Técnicas: **PE** = partición de equivalencia, **VL** = valor límite, **TD** = tabla de decisión, **HU** = criterio de aceptación de una historia de usuario.
+
+| ID | Requisito | Entradas (peso, zona, cliente, día, cupón) | Resultado esperado | Técnica |
+|---|---|---|---|---|
+| CP-01 | R1 | 0, urbana, normal, 1, — | Error "peso inválido" | VL (0) · HU CA-01.1 |
+| CP-02 | R1, R3 | 0,01, urbana, normal, 1, — | $6.000 | VL (0) |
+| CP-03 | R1 | −5, urbana, normal, 1, — | Error "peso inválido" | PE-P4 |
+| CP-04 | R3 | 3,99, urbana, normal, 1, — | $6.000 | VL (L1) |
+| CP-05 | R3 | 4, urbana, normal, 1, — | $6.000 | VL (L1) · HU CA-02.1 |
+| CP-06 | R3 | 4,01, urbana, normal, 1, — | $9.000 | VL (L1) |
+| CP-07 | R3 | 9,99, urbana, normal, 1, — | $9.000 | VL (L2) |
+| CP-08 | R3 | 10, urbana, normal, 1, — | $9.000 | VL (L2) |
+| CP-09 | R3, R8 | 10,01, urbana, normal, 1, — | $9.000 | VL (L2) |
+| CP-10 | R3 | 12,5, urbana, normal, 1, — | $11.000 | PE-P3 · HU CA-02.3 |
+| CP-11 | R1, R3, R8 | 39,99, urbana, normal, 1, — | $33.000 | VL (PMAX) |
+| CP-12 | R1, R3 | 40, urbana, normal, 1, — | $33.000 | VL (PMAX) · HU CA-01.3 |
+| CP-13 | R1 | 40,01, urbana, normal, 1, — | Error "peso inválido" | VL (PMAX) · HU CA-01.2 |
+| CP-14 | R1 | 45, urbana, normal, 1, — | Error "peso inválido" | PE-P5 |
+| CP-15 | R4 | 6, rural, normal, 2, — | $10.800 | PE-Z2 · HU CA-02.4 |
+| CP-16 | R4 | 6, nacional, normal, 3, — | $12.600 | PE-Z3 · HU CA-02.5 |
+| CP-17 | R2 | 6, insular, normal, 1, — | Error (zona inválida) | PE-Z4 · HU CA-01.4 |
+| CP-18 | R2 | 6, urbana, normal, 0, — | Error (día inválido) | VL (día) · PE-D3 · HU CA-01.5 |
+| CP-19 | R2 | 6, urbana, normal, 8, — | Error (día inválido) | VL (día) · PE-D4 · HU CA-01.5 |
+| CP-20 | R5 | 6, urbana, normal, 5, — | $9.000 | VL (día 5/6) · PE-D1 |
+| CP-21 | R5 | 6, urbana, normal, 6, — | $11.000 | VL (día 5/6) · PE-D2 · TD-02 · HU CA-02.6 |
+| CP-22 | R5 | 6, urbana, normal, 7, — | $11.000 | VL (día 7) · PE-D2 |
+| CP-23 | R6, R8 | 6, urbana, frecuente, 1, — | $8.600 | TD-07 · HU CA-03.5 |
+| CP-24 | R6 | 6, urbana, frecuente, 1, ENVIO10 | $8.100 | TD-09 · HU CA-03.2 |
+| CP-25 | R6 | 6, urbana, vip, 1, ENVIO10 | $7.200 | TD-15 |
+| CP-26 | R5, R6 | 6, urbana, normal, 6, ENVIO10 | $9.900 | TD-04 |
+| CP-27 | R7 | 6, urbana, normal, 1, GRATIS | $9.000 | TD-05 · PE-K3 · HU CA-03.3 |
+| CP-28 | R5, R6, R7 | 6, urbana, vip, 7, DESCUENTO50 | $8.800 | TD-18 |
+| CP-29 | R6, R8 | 2, urbana, vip, 1, — | $5.000 (mínimo) | PE-P1 · HU CA-03.4 |
+| CP-30 | R3, R8 | 10,1, urbana, normal, 1, — | $9.100 | VL (redondeo hacia arriba) |
+| CP-31 | R3–R6, R8 | 4, rural, vip, 6, ENVIO10 | $7.400 | Ejemplo del enunciado · TD-16 · HU CA-03.1 |
+| CP-32 | R3–R6, R8 | 12,5, nacional, frecuente, 7, ENVIO10 | $15.700 | TD-10 (combinado) |
+| CP-33 | R6, R8 | 1, urbana, vip, 1, ENVIO10 | $5.000 (mínimo) | TD-15 · PE-P1 |
+| CP-34 | R3, R8 | 12,3, urbana, normal, 1, — | $10.800 | VL (redondeo hacia abajo) |
+| CP-35 | R3 | 4,5, urbana, normal, 1, — | $9.000 | PE-P2 · HU CA-02.2 |
+
+**Total: 35 casos.**
+
+### 3.5 Cálculos paso a paso
+
+**CP-11 · 39,99 kg, urbana, normal, día 1, sin cupón**
+1. 39,99 cumple 0 < 39,99 ≤ 40 → peso válido (R1).
+2. 39,99 > 10 → tramo 3: 9.000 + (39,99 − 10) × 800 = 9.000 + 29,99 × 800 = 9.000 + 23.992 = **$32.992**
+3. Urbana: sin recargo → $32.992
+4. Día 1: no es fin de semana → $32.992
+5. Cliente normal, sin cupón: sin descuento → $32.992
+6. Es mayor que $5.000. Redondeo: 32.992 está más cerca de 33.000 (le faltan 8) que de 32.900 → **resultado esperado: $33.000**
+
+**CP-24 · 6 kg, urbana, frecuente, día 1, ENVIO10**
+1. 4 < 6 ≤ 10 → tramo 2 → **$9.000**
+2. Urbana: sin recargo → $9.000
+3. Día 1: no es fin de semana → $9.000
+4. B = 2 es par: solo el mayor descuento. Frecuente 5 % contra cupón 10 % → gana el cupón: 9.000 × 0,90 = **$8.100**
+5. Es mayor que $5.000 y ya es múltiplo de 100 → **resultado esperado: $8.100**
+
+**CP-26 · 6 kg, urbana, normal, día 6 (sábado), ENVIO10**
+1. 4 < 6 ≤ 10 → tramo 2 → **$9.000**
+2. Urbana: sin recargo → $9.000
+3. Sábado, y E = 6 es par: el recargo va antes del descuento → 9.000 + 2.000 = **$11.000**
+4. Cliente normal (0 %) contra cupón 10 % → 11.000 × 0,90 = **$9.900**
+5. Es mayor que $5.000 y ya es múltiplo de 100 → **resultado esperado: $9.900**
+
+**CP-30 · 10,1 kg, urbana, normal, día 1, sin cupón**
+1. 10,1 > 10 → tramo 3: 9.000 + (10,1 − 10) × 800 = 9.000 + 0,1 × 800 = 9.000 + 80 = **$9.080**
+2. Urbana, día 1, cliente normal, sin cupón: no cambia → $9.080
+3. Es mayor que $5.000. Redondeo: 9.080 está a 80 de 9.000 y a 20 de 9.100 → **resultado esperado: $9.100**
+
+**CP-23 · 6 kg, urbana, frecuente, día 1, sin cupón** (caso exacto de los $50)
+1. 4 < 6 ≤ 10 → tramo 2 → **$9.000**
+2. Urbana, día 1 → $9.000
+3. Frecuente 5 %, sin cupón → 9.000 × 0,95 = **$8.550**
+4. Es mayor que $5.000. Redondeo: 8.550 está justo en la mitad entre 8.500 y 8.600; por R8, los $50 redondean hacia arriba → **resultado esperado: $8.600**
+
+**CP-32 · 12,5 kg, nacional, frecuente, día 7 (domingo), ENVIO10**
+1. 12,5 > 10 → tramo 3: 9.000 + (12,5 − 10) × 800 = 9.000 + 2.000 = **$11.000**
+2. Nacional +40 % → 11.000 × 1,40 = **$15.400**
+3. Domingo, y E = 6 es par: el recargo va antes del descuento → 15.400 + 2.000 = **$17.400**
+4. B = 2 es par: frecuente 5 % contra cupón 10 % → gana el cupón: 17.400 × 0,90 = **$15.660**
+5. Es mayor que $5.000. Redondeo: 15.660 está a 60 de 15.600 y a 40 de 15.700 → **resultado esperado: $15.700**
+
+**CP-29 · 2 kg, urbana, VIP, día 1, sin cupón** (mínimo)
+1. 0 < 2 ≤ 4 → tramo 1 → **$6.000**
+2. Urbana, día 1 → $6.000
+3. VIP 20 % → 6.000 × 0,80 = **$4.800**
+4. 4.800 < 5.000 → se cobra el mínimo → **$5.000**
+5. Ya es múltiplo de 100 → **resultado esperado: $5.000**
+
+### 3.6 Matriz de trazabilidad actualizada
+
+| Requisito | Historia | Criterios de aceptación | Casos de prueba |
+|---|---|---|---|
+| R1 · Peso válido (0 < p ≤ 40) | HU-01 | CA-01.1, CA-01.2, CA-01.3 | CP-01, CP-02, CP-03, CP-11, CP-12, CP-13, CP-14 |
+| R2 · Zona y día válidos | HU-01 | CA-01.4, CA-01.5 | CP-17, CP-18, CP-19 |
+| R3 · Tarifa base por tramos | HU-02 | CA-02.1, CA-02.2, CA-02.3 | CP-02, CP-04 a CP-12, CP-30, CP-31, CP-32, CP-34, CP-35 |
+| R4 · Recargo por zona | HU-02 | CA-02.4, CA-02.5 | CP-15, CP-16, CP-31, CP-32 |
+| R5 · Recargo fin de semana | HU-02 | CA-02.6, CA-03.1 | CP-20, CP-21, CP-22, CP-26, CP-28, CP-31, CP-32 |
+| R6 · Descuento cliente/cupón | HU-03 | CA-03.1, CA-03.2, CA-03.5 | CP-23 a CP-26, CP-28, CP-29, CP-31, CP-32, CP-33 |
+| R7 · Cupón inexistente | HU-03 | CA-03.3 | CP-27, CP-28 |
+| R8 · Mínimo y redondeo | HU-03 | CA-03.4, CA-03.5 | CP-09, CP-11, CP-23, CP-29, CP-30, CP-31, CP-32, CP-33, CP-34 |
