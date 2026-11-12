@@ -1,0 +1,56 @@
+digraph UML {
+  rankdir=BT; fontname="Helvetica"; nodesep=0.5; ranksep=0.7;
+  labelloc="t"; fontsize=14; label="Diagrama de clases UML · Patrón Estrategia para el recargo por zona (v2.0.0)";
+  node [shape=plain, fontname="Helvetica", fontsize=11];
+  edge [fontname="Helvetica", fontsize=10];
+
+  Contexto [label=<
+  <table border="1" cellborder="0" cellspacing="0" cellpadding="4" bgcolor="#fdf6e3">
+    <tr><td><i>«módulo / contexto»</i></td></tr>
+    <tr><td><b>envios</b></td></tr>
+    <hr/>
+    <tr><td align="left">- ZONAS: dict[str, EstrategiaZona]</td></tr>
+    <hr/>
+    <tr><td align="left">+ calcular_costo(peso, zona, cliente, dia, cupon=None): int</td></tr>
+    <tr><td align="left">- obtener_estrategia_zona(zona: str): EstrategiaZona</td></tr>
+    <tr><td align="left">- validar_peso(peso: float)</td></tr>
+    <tr><td align="left">- validar_dia(dia: int)</td></tr>
+    <tr><td align="left">- tarifa_base(peso: float): float</td></tr>
+    <tr><td align="left">- recargo_fin_de_semana(dia: int): int</td></tr>
+    <tr><td align="left">- porcentaje_descuento(cliente, cupon): float</td></tr>
+    <tr><td align="left">- redondear(costo: float): int</td></tr>
+  </table>>];
+
+  Estrategia [label=<
+  <table border="1" cellborder="0" cellspacing="0" cellpadding="4" bgcolor="#dbe8f6">
+    <tr><td><i>«abstract»</i></td></tr>
+    <tr><td><b><i>EstrategiaZona</i></b></td></tr>
+    <hr/>
+    <tr><td align="left"><i>+ aplicar_recargo(tarifa: float): float</i></td></tr>
+  </table>>];
+
+  Urbana [label=<
+  <table border="1" cellborder="0" cellspacing="0" cellpadding="4">
+    <tr><td><b>ZonaUrbana</b></td></tr><hr/>
+    <tr><td align="left">+ aplicar_recargo(tarifa): float</td></tr>
+    <tr><td align="left"><font point-size="9">return tarifa</font></td></tr>
+  </table>>];
+  Rural [label=<
+  <table border="1" cellborder="0" cellspacing="0" cellpadding="4">
+    <tr><td><b>ZonaRural</b></td></tr><hr/>
+    <tr><td align="left">+ aplicar_recargo(tarifa): float</td></tr>
+    <tr><td align="left"><font point-size="9">return tarifa × (1 + 0,20)</font></td></tr>
+  </table>>];
+  Nacional [label=<
+  <table border="1" cellborder="0" cellspacing="0" cellpadding="4">
+    <tr><td><b>ZonaNacional</b></td></tr><hr/>
+    <tr><td align="left">+ aplicar_recargo(tarifa): float</td></tr>
+    <tr><td align="left"><font point-size="9">return tarifa × (1 + 0,40)</font></td></tr>
+  </table>>];
+
+  Urbana -> Estrategia [arrowhead=empty];
+  Rural -> Estrategia [arrowhead=empty];
+  Nacional -> Estrategia [arrowhead=empty];
+  Contexto -> Estrategia [arrowhead=odiamond, dir=back, arrowtail=odiamond, label="  usa  1 → 3", constraint=false];
+  {rank=same; Contexto; Estrategia}
+}

@@ -698,3 +698,105 @@ pytest -v --cov=envios --cov-branch --cov-report=term-missing --cov-report=html
 | **Cobertura de ramas** | 26 / 26 | **100 %** |
 
 **Análisis:** la suite cubre el 100 % de las sentencias y de las ramas, y aun así el código tiene 7 defectos. La cobertura mide qué se ejecutó, no si el resultado es correcto. Los defectos aparecen porque los resultados esperados salen de la especificación (caja negra) y no del código.
+
+---
+
+## Parte 6 · Mantenimiento y refactorización
+
+### 6.1 Malos olores (code smells) del código heredado
+
+Las líneas corresponden a `envios.py` v1.0.0.
+
+| # | Mal olor (nombre técnico) | Línea(s) | Evidencia | Deuda técnica que genera |
+|---|---|---|---|---|
+| 1 | **Números mágicos** (*Magic Numbers*) | 12, 15, 17, 19, 30, 35, 36–37, 40 | `50`, `6000`, `9000`, `800`, `0.05`, `0.10`, `5000`, `100` escritos directamente | Cambiar una tarifa exige buscar el número en todo el código. El `50` de la línea 12 es justamente el origen de DEF-01: nadie lo relacionó con PMAX. |
+| 2 | **Argumento bandera** (*Flag Argument*) | 11, 38–39 | `flag=False` decide si la función imprime | La función hace dos cosas distintas según un booleano. Mezcla cálculo con presentación y obliga a probar dos caminos más (V(G) sube). |
+| 3 | **Nombres misteriosos** (*Mysterious Name*) | 11 y todo el cuerpo | `calc`, `p`, `z`, `c`, `d`, `t`, `cup` | El código no se entiende sin la especificación al lado. Cada mantenimiento empieza por descifrar qué es cada variable. |
+| 4 | **Método largo / demasiadas responsabilidades** (*Long Method*) | 11–40 | Una sola función valida, calcula tarifa, recargos, descuentos, mínimo, redondeo e imprime; V(G) = 14 | No se pueden probar las partes por separado. Cualquier cambio toca la función completa y aumenta el riesgo de regresión. |
+| 5 | **Condicional repetido sobre un tipo** (*Switch Statements*) | 20–25 (zona) y 29–32 (cliente) | Cadenas `if/elif` que comparan cadenas de texto | Agregar una zona nueva obliga a modificar la función (viola abierto/cerrado). Además, la cadena sin `else` dejó pasar zonas inválidas (DEF-05). |
+| 6 | **Código muerto / sentencia inútil** (*Dead Code*) | 21 | `t = t` | Ruido que confunde al lector y suma un nodo y una rama al grafo sin aportar nada. |
+| 7 | **Condicional anidado innecesario y comparación no idiomática** | 33–35 | `if cup != None:` seguido de `if cup == "ENVIO10":`; además, la línea 35 tiene 5 espacios de sangría | Complejidad extra sin necesidad (`cup == "ENVIO10"` ya implica que no es `None`). Se debe usar `is not None`. La sangría inconsistente es frágil en Python. |
+| 8 | **Datos globales incompletos** (*Global Data*) | 2–9 | `CONFIG` es un diccionario global mutable al que le falta PMAX | Cualquiera puede modificarlo en tiempo de ejecución, y su falta de PMAX produjo el `50` fijo. La configuración queda repartida entre `CONFIG` y números sueltos. |
+| 9 | **Comentario como desodorante** (*Comments*) | 26 | `# fin de semana` explica un `d > 6` que además está mal | El comentario reemplaza un nombre claro (`DIAS_FIN_DE_SEMANA`) y no evitó el defecto DEF-02. |
+
+### 6.2 Clasificación de los cambios
+
+| Cambio | Rama | Tipo de mantenimiento | Justificación |
+|---|---|---|---|
+| Corregir DEF-01 a DEF-07 | `fix/DEF-01` … `fix/DEF-07` | **Correctivo** | Eliminan fallas: el software no cumplía R1, R2, R5, R6 y R8. |
+| Reemplazar números mágicos por constantes con nombre | `refactor/estrategia` | **Preventivo** | No cambia el comportamiento; reduce la probabilidad de defectos futuros al cambiar tarifas. |
+| Extraer funciones (`tarifa_base`, `redondear`, etc.) | `refactor/estrategia` | **Preventivo** | Baja la complejidad y permite probar cada regla por separado. |
+| Renombrar variables y la función (`calcular_costo`) | `refactor/estrategia` | **Preventivo** | Mejora la legibilidad y facilita el mantenimiento futuro. |
+| Patrón Estrategia para las zonas | `refactor/estrategia` | **Preventivo** | Prepara el código para agregar zonas sin modificar la función principal (abierto/cerrado). |
+| Eliminar el argumento `flag` y el `print` | `refactor/estrategia` | **Perfectivo** | Mejora la calidad de la interfaz: separa cálculo de presentación. Cambia la interfaz pública. |
+| Suite de pruebas automatizada (`test/suite`) | `test/suite` | **Preventivo** | Detecta regresiones antes de que lleguen a producción. |
+| Recargo por hora pico (Parte 8) | `feature/hora-pico` | **Perfectivo** | Nueva funcionalidad pedida por el negocio. |
+
+No hubo cambios **adaptativos**: el ambiente (Python, sistema operativo, librerías) no cambió. Un ejemplo de adaptativo sería migrar el código a otra versión de Python o conectarlo a una API externa de tarifas.
+
+### 6.3 Refactorización
+
+Resumen de lo que se hizo en la rama `refactor/estrategia`:
+
+1. **Constantes con nombre:** `PESO_MAXIMO = 40`, `LIMITE_TRAMO_1 = 4`, `LIMITE_TRAMO_2 = 10`, `TARIFA_TRAMO_1 = 6000`, `TARIFA_TRAMO_2 = 9000`, `VALOR_KG_ADICIONAL = 800`, `RECARGO_RURAL = 0.20`, `RECARGO_NACIONAL = 0.40`, `DIAS_FIN_DE_SEMANA = (6, 7)`, `RECARGO_FIN_DE_SEMANA = 2000`, `DESCUENTOS_CLIENTE`, `CUPONES`, `COSTO_MINIMO = 5000` y `MULTIPLO_REDONDEO = 100`. El diccionario `CONFIG` desaparece.
+2. **Funciones extraídas:** `validar_peso`, `validar_dia`, `obtener_estrategia_zona`, `tarifa_base`, `recargo_fin_de_semana`, `porcentaje_descuento` y `redondear`. La función principal `calcular_costo` solo las compone en el orden de la especificación. Se conserva el alias `calc = calcular_costo` para no romper a quien ya llama a `calc`.
+3. **Se eliminó el argumento `flag`** y el `print`: la función solo calcula y devuelve.
+4. **Patrón Estrategia aplicado a las zonas:** la clase abstracta `EstrategiaZona` define `aplicar_recargo(tarifa)`, y cada zona es una estrategia concreta (`ZonaUrbana`, `ZonaRural`, `ZonaNacional`). El diccionario `ZONAS` relaciona el nombre de la zona con su estrategia. Para agregar una zona nueva basta con crear una clase y registrarla, sin tocar `calcular_costo`.
+
+![Diagrama de clases UML del patrón Estrategia](img/uml_estrategia.png)
+
+**Participantes del patrón:**
+
+| Rol en el patrón | Clase |
+|---|---|
+| Estrategia (interfaz) | `EstrategiaZona` (clase abstracta, `ABC`) |
+| Estrategias concretas | `ZonaUrbana`, `ZonaRural`, `ZonaNacional` |
+| Contexto | módulo `envios`: `calcular_costo` obtiene la estrategia desde `ZONAS` y la usa sin saber cuál es |
+
+### 6.4 Corrección de los defectos
+
+Cada defecto se corrigió en su propia rama, con un commit que referencia el ID, y se integró a `main` con `merge --no-ff`. Después de cada `merge` se ejecutó la regresión completa (38 casos):
+
+| Orden | Rama | Cambio | Regresión después del merge |
+|---|---|---|---|
+| — | (v1.0.0) | — | 16 fallan · 22 pasan |
+| 1 | `fix/DEF-07` | Mensaje `"peso inválido"` con tilde | 14 fallan · 24 pasan |
+| 2 | `fix/DEF-01` | `p > 50` → `p > 40` | 12 fallan · 26 pasan |
+| 3 | `fix/DEF-02` | `d > 6` → `d == 6 or d == 7` | 10 fallan · 28 pasan |
+| 4 | `fix/DEF-03` | Se calcula un solo descuento: `max(descuento del cliente, descuento del cupón)` | 8 fallan · 30 pasan |
+| 5 | `fix/DEF-04` | `int(t / 100) * 100` → `math.floor(round(t, 2) / 100 + 0.5) * 100` | 3 fallan · 35 pasan |
+| 6 | `fix/DEF-05` | `else: raise ValueError("zona inválida")` | 2 fallan · 36 pasan |
+| 7 | `fix/DEF-06` | `if d < 1 or d > 7: raise ValueError("día inválido")` | **0 fallan · 38 pasan** |
+
+Sobre DEF-04: se usa `math.floor(x + 0.5)` y no `round()` porque `round()` de Python usa redondeo bancario (85,5 → 86, pero 84,5 → 84), y la especificación exige que los $50 siempre suban. El `round(t, 2)` previo elimina el ruido de punto flotante (riesgo RG-02 del plan).
+
+### 6.5 Pruebas de regresión
+
+**Captura 3.** Regresión después de corregir los 7 defectos (antes de refactorizar): 38 pasan.
+
+![38 passed](evidencias/captura3.png)
+
+**Captura 4.** Regresión después de la refactorización: 61 pasan (los 38 casos originales + 23 pruebas de unidad nuevas de las funciones extraídas y las estrategias), con cobertura del 100 %.
+
+![61 passed](evidencias/captura4.png)
+
+**Única prueba ajustada:** CB-14 probaba el argumento `flag`. Como `flag` se eliminó a propósito (cambio de interfaz), la prueba ahora verifica lo contrario: que `calc` ya no imprime nada y que pasar `flag` lanza `TypeError`. Los otros 37 casos se ejecutaron **sin ninguna modificación**.
+
+**Pruebas de unidad nuevas** (`tests/test_unidades.py`, 23 casos): `tarifa_base` en los límites, cada estrategia de zona, el registro `ZONAS`, `recargo_fin_de_semana`, `porcentaje_descuento` (toma el mayor), `redondear` (incluye 8.549,999999999998 → 8.600) y que `EstrategiaZona` no se pueda instanciar.
+
+### 6.6 Comparación antes y después
+
+| Métrica | v1.0.0 (heredado) | Corregido, sin refactorizar | v2.0.0 (refactorizado) |
+|---|---|---|---|
+| Complejidad ciclomática de la función principal | 14 (grafo, Parte 4) · 15 con radon, que cuenta el `or` | 17 (radon) | **1** (`calcular_costo`) |
+| Complejidad máxima de una función | 14 | 17 | **3** (`tarifa_base`) |
+| Complejidad promedio por función o método | 14 | 17 | **1,5** (12 bloques) |
+| Número de funciones / clases | 1 / 0 | 1 / 0 | 8 funciones / 4 clases |
+| Líneas totales (LOC) | 40 | 47 | 126 |
+| Líneas de código sin comentarios ni blancos (SLOC) | 37 | 43 | 71 |
+| Números mágicos | 9 | 9 | 0 |
+| Cobertura de sentencias | 100 % (29/29) | 100 % (34/34) | 100 % (63/63) |
+| Cobertura de ramas | 100 % (26/26) | 100 % (26/26) | 100 % (10/10) |
+| Casos que pasan | 22 / 38 | 38 / 38 | 61 / 61 |
+
+**Análisis:** el número de líneas aumentó porque se agregaron constantes con nombre, cuatro clases, documentación y sangrías claras. Ese aumento es deliberado: cada función es ahora pequeña (complejidad entre 1 y 3, calificación A en radon) y se puede probar por separado. La complejidad de la función principal bajó de 14 a 1. Corregir los defectos sin refactorizar la había subido a 17, lo que muestra cómo se acumula la deuda técnica cuando solo se parcha. La cobertura se mantuvo en 100 %, ahora con pruebas de unidad e integración.
