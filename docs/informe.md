@@ -533,3 +533,167 @@ Son 14 caminos, igual a V(G). Los casos CB-10, CB-12 y CB-14 no estaban en la ma
 **Conclusión:** la cobertura de ramas incluye a la de sentencias, pero no al revés. Con 12 casos se ejecutan todas las líneas y aun así quedan 2 decisiones sin probar por su lado falso, y una de ellas, la 12→14, es justamente donde se esconde el defecto de la zona inválida.
 
 **Relación con la caja negra:** los 35 casos de la Parte 3 nunca usan `flag=True`, así que por sí solos no cubren la línea 39 (`print`). Por eso se agregan los casos de caja blanca: así la suite completa llega al 100 % de sentencias y de ramas.
+
+---
+
+## Parte 5 · Automatización, ejecución y defectos
+
+### 5.1 Automatización
+
+- **Herramienta:** `pytest` con `@pytest.mark.parametrize`. Cada caso lleva su ID (CP-xx o CB-xx) como identificador en la salida.
+- **Archivos:** `tests/test_envios.py` (suite) y `pytest.ini` (configuración y marcador `aceptacion`).
+- **Casos automatizados: 38**, que son los 35 de caja negra (CP-01 a CP-35) más 3 caminos de caja blanca que no estaban en la matriz (CB-10, CB-12 y CB-14). Los otros 11 caminos de caja blanca ya están cubiertos por un CP equivalente (Parte 4.3).
+- **Criterios de aceptación:** los casos que corresponden a un criterio Dado/Cuando/Entonces llevan el marcador `@pytest.mark.aceptacion`. Se ejecutan por separado con `pytest -m aceptacion`.
+- **Errores:** para R1 se verifica `ValueError` con el mensaje "peso inválido". Para R2 se verifica que se lance `ValueError`.
+
+**Comando de ejecución**
+
+```
+pytest -v --cov=envios --cov-branch --cov-report=term-missing --cov-report=html
+```
+
+### 5.2 Ejecución contra el código heredado v1.0.0
+
+**Resultado: 38 casos ejecutados · 22 pasan · 16 fallan.**
+
+**Captura 1.** Salida de `pytest -v` contra v1.0.0: 16 fallan, 22 pasan.
+
+![Pytest contra v1.0.0](covertura.png)
+
+**Captura 2.** Reporte HTML de cobertura contra v1.0.0: 100 % de sentencias y de ramas.
+
+![Cobertura v1.0.0](pytest.png)
+
+| Caso | Esperado | Obtenido en v1.0.0 | Defecto |
+|---|---|---|---|
+| CP-01 | Error "peso inválido" | Error "peso invalido" (sin tilde) | DEF-07 |
+| CP-03 | Error "peso inválido" | Error "peso invalido" (sin tilde) | DEF-07 |
+| CP-11 | $33.000 | $32.900 | DEF-04 |
+| CP-13 | Error "peso inválido" | $33.000 (no lanza error) | DEF-01 |
+| CP-14 | Error "peso inválido" | $37.000 (no lanza error) | DEF-01 |
+| CP-17 | Error (zona inválida) | $9.000 (no lanza error) | DEF-05 |
+| CP-18 | Error (día inválido) | $9.000 (no lanza error) | DEF-06 |
+| CP-19 | Error (día inválido) | $11.000 (no lanza error y cobra fin de semana) | DEF-06 |
+| CP-21 | $11.000 | $9.000 | DEF-02 |
+| CP-23 | $8.600 | $8.500 | DEF-04 |
+| CP-24 | $8.100 | $7.600 | DEF-03 |
+| CP-25 | $7.200 | $6.400 | DEF-03 |
+| CP-26 | $9.900 | $8.100 | DEF-02 |
+| CP-30 | $9.100 | $9.000 | DEF-04 |
+| CP-31 | $7.400 | $5.100 | DEF-02, DEF-03, DEF-04 |
+| CP-32 | $15.700 | $14.800 | DEF-03, DEF-04 |
+
+### 5.3 Reporte de defectos
+
+**Escalas usadas**
+
+- **Severidad** (impacto en el negocio): _Crítica_ = el sistema no se puede usar; _Alta_ = cobra mal o acepta envíos que no debería, de forma sistemática; _Media_ = error acotado o que solo aparece con datos anómalos; _Baja_ = cosmético, sin impacto en el dinero.
+- **Prioridad** (urgencia de corregir): _Alta_ = antes del próximo despliegue; _Media_ = en esta versión; _Baja_ = cuando haya tiempo.
+
+---
+
+#### DEF-01 · Se aceptan envíos de más de 40 kg
+
+| Campo | Detalle |
+|---|---|
+| Requisito | R1 (0 < peso ≤ PMAX = 40) |
+| Ubicación | `envios.py`, línea 12: `if p <= 0 or p > 50:` usa 50 fijo en lugar de PMAX = 40 |
+| Pasos para reproducir | 1. `from envios import calc` 2. `calc(40.01, "urbana", "normal", 1)` 3. `calc(45, "urbana", "normal", 1)` |
+| Resultado esperado | `ValueError("peso inválido")` en ambos casos |
+| Resultado obtenido | $33.000 y $37.000; no se lanza ningún error |
+| Casos que lo detectan | CP-13, CP-14 |
+| Severidad | **Alta**: el sistema cotiza y vende envíos de 40 a 50 kg que la empresa no está en capacidad de despachar. |
+| Prioridad | **Alta**: afecta la operación logística y la corrección es de una línea. |
+
+#### DEF-02 · El sábado no cobra el recargo de fin de semana
+
+| Campo | Detalle |
+|---|---|
+| Requisito | R5 (día 6 o 7 → +$2.000) |
+| Ubicación | línea 27: `if d > 6:` solo es verdadero para el domingo (7) |
+| Pasos para reproducir | `calc(6, "urbana", "normal", 6)` |
+| Resultado esperado | $11.000 (9.000 + 2.000) |
+| Resultado obtenido | $9.000 |
+| Casos que lo detectan | CP-21, CP-26, CP-31 |
+| Severidad | **Alta**: la empresa deja de cobrar $2.000 (más los recargos asociados) en todos los envíos de los sábados. Es una pérdida de ingresos sistemática. |
+| Prioridad | **Alta**: ocurre todas las semanas. |
+
+#### DEF-03 · Se acumulan el descuento del cliente y el del cupón
+
+| Campo | Detalle |
+|---|---|
+| Requisito | R6 con regla B par (solo se aplica el mayor de los dos) |
+| Ubicación | líneas 29 a 35: los tres `if` independientes aplican el descuento del cliente y luego también el del cupón |
+| Pasos para reproducir | `calc(6, "urbana", "vip", 1, "ENVIO10")` |
+| Resultado esperado | $7.200 (solo VIP 20 %: 9.000 × 0,80) |
+| Resultado obtenido | $6.400 (9.000 × 0,80 × 0,90 = 6.480, truncado) |
+| Casos que lo detectan | CP-24, CP-25, CP-31, CP-32 |
+| Severidad | **Alta**: se concede más descuento del permitido a todo cliente frecuente o VIP que use cupón. Es pérdida de dinero en cada envío de ese tipo. |
+| Prioridad | **Alta**: los clientes VIP y frecuentes son los que más usan cupones. |
+
+#### DEF-04 · El redondeo trunca en vez de llevar al múltiplo de $100 más cercano
+
+| Campo | Detalle |
+|---|---|
+| Requisito | R8 (al múltiplo de $100 más cercano; los $50 redondean hacia arriba) |
+| Ubicación | línea 40: `return int(t / 100) * 100` siempre redondea hacia abajo |
+| Pasos para reproducir | `calc(6, "urbana", "frecuente", 1)` (costo sin redondear: $8.550) |
+| Resultado esperado | $8.600 |
+| Resultado obtenido | $8.500 |
+| Casos que lo detectan | CP-11, CP-23, CP-30, CP-31, CP-32 |
+| Severidad | **Media**: el error por envío es de máximo $99, pero se repite en cerca de la mitad de las cotizaciones. |
+| Prioridad | **Alta**: afecta a casi todas las cotizaciones con decimales y la corrección es sencilla. |
+
+#### DEF-05 · Una zona inválida no lanza error
+
+| Campo | Detalle |
+|---|---|
+| Requisito | R2 (zona distinta de urbana, rural o nacional → error) |
+| Ubicación | líneas 20 a 25: la cadena `if/elif` no tiene `else`, así que una zona desconocida pasa sin recargo |
+| Pasos para reproducir | `calc(6, "insular", "normal", 1)` |
+| Resultado esperado | `ValueError` (zona inválida) |
+| Resultado obtenido | $9.000: se cotiza como si fuera urbana |
+| Casos que lo detectan | CP-17 |
+| Severidad | **Media**: solo aparece con datos mal digitados, pero en ese caso cobra de menos un envío rural o nacional, sin avisar. |
+| Prioridad | **Media**: corregir en esta versión. |
+
+#### DEF-06 · Un día fuera de 1 a 7 no lanza error
+
+| Campo | Detalle |
+|---|---|
+| Requisito | R2 (día no está entre 1 y 7 → error) |
+| Ubicación | `calc` no valida `d` en ninguna parte; la línea 27 trata cualquier día > 6 (incluido 8, 9…) como fin de semana |
+| Pasos para reproducir | `calc(6, "urbana", "normal", 0)` y `calc(6, "urbana", "normal", 8)` |
+| Resultado esperado | `ValueError` (día inválido) en ambos casos |
+| Resultado obtenido | $9.000 y $11.000 (al día 8 incluso le cobra el recargo de fin de semana) |
+| Casos que lo detectan | CP-18, CP-19 |
+| Severidad | **Media**: solo con datos anómalos, pero produce cobros sin sentido. |
+| Prioridad | **Media**: corregir en esta versión. |
+
+#### DEF-07 · El mensaje de error del peso no coincide con la especificación
+
+| Campo | Detalle |
+|---|---|
+| Requisito | R1 (se lanza el error "peso inválido") |
+| Ubicación | línea 13: `raise ValueError("peso invalido")`, sin tilde |
+| Pasos para reproducir | `calc(0, "urbana", "normal", 1)` |
+| Resultado esperado | `ValueError` con el mensaje "peso inválido" |
+| Resultado obtenido | `ValueError` con el mensaje "peso invalido" |
+| Casos que lo detectan | CP-01, CP-03 |
+| Severidad | **Baja**: el comportamiento es el correcto (sí rechaza el peso); solo cambia el texto que vería el usuario. |
+| Prioridad | **Baja**: se corrige junto con DEF-01, que toca la misma validación. |
+
+### 5.4 Métricas
+
+| Métrica | Cálculo | Valor |
+|---|---|---|
+| Casos ejecutados | — | 38 |
+| **Porcentaje de casos que pasan** | 22 / 38 × 100 | **57,9 %** (42,1 % fallan) |
+| Defectos encontrados | — | 7 |
+| **Defectos por severidad** | Crítica 0 · Alta 3 (DEF-01, 02, 03) · Media 3 (DEF-04, 05, 06) · Baja 1 (DEF-07) | 0 / 3 / 3 / 1 |
+| **Densidad de defectos** | 7 defectos / 40 líneas × 100 | **17,5 defectos por cada 100 líneas** |
+| Densidad (por sentencias ejecutables) | 7 / 29 sentencias × 100 | 24,1 por cada 100 sentencias |
+| **Cobertura de sentencias** | 29 / 29 | **100 %** |
+| **Cobertura de ramas** | 26 / 26 | **100 %** |
+
+**Análisis:** la suite cubre el 100 % de las sentencias y de las ramas, y aun así el código tiene 7 defectos. La cobertura mide qué se ejecutó, no si el resultado es correcto. Los defectos aparecen porque los resultados esperados salen de la especificación (caja negra) y no del código.
