@@ -418,3 +418,118 @@ Técnicas: **PE** = partición de equivalencia, **VL** = valor límite, **TD** =
 | R6 · Descuento cliente/cupón | HU-03 | CA-03.1, CA-03.2, CA-03.5 | CP-23 a CP-26, CP-28, CP-29, CP-31, CP-32, CP-33 |
 | R7 · Cupón inexistente | HU-03 | CA-03.3 | CP-27, CP-28 |
 | R8 · Mínimo y redondeo | HU-03 | CA-03.4, CA-03.5 | CP-09, CP-11, CP-23, CP-29, CP-30, CP-31, CP-32, CP-33, CP-34 |
+
+---
+
+## Parte 4 · Caja blanca
+
+### 4.1 Grafo de flujo de `calc`
+
+Los números de línea corresponden a `envios.py` de la versión v1.0.0. El nodo 28 es el nodo de salida único: tanto el `raise` como el `return` terminan ahí.
+
+| Nodo | Línea(s) | Sentencia | ¿Predicado? |
+|---|---|---|---|
+| 1 | 12 | `if p <= 0 or p > 50:` | Sí |
+| 2 | 13 | `raise ValueError("peso invalido")` | |
+| 3 | 14 | `if p <= CONFIG["L1"]:` | Sí |
+| 4 | 15 | `t = 6000` | |
+| 5 | 16 | `elif p <= CONFIG["L2"]:` | Sí |
+| 6 | 17 | `t = 9000` | |
+| 7 | 19 | `t = 9000 + (p - CONFIG["L2"]) * 800` | |
+| 8 | 20 | `if z == "urbana":` | Sí |
+| 9 | 21 | `t = t` | |
+| 10 | 22 | `elif z == "rural":` | Sí |
+| 11 | 23 | `t = t + t * CONFIG["RECARGO_RURAL"]` | |
+| 12 | 24 | `elif z == "nacional":` | Sí |
+| 13 | 25 | `t = t + t * CONFIG["RECARGO_NACIONAL"]` | |
+| 14 | 27 | `if d > 6:` | Sí |
+| 15 | 28 | `t = t + CONFIG["RECARGO_FINDE"]` | |
+| 16 | 29 | `if c == "frecuente":` | Sí |
+| 17 | 30 | `t = t - t * 0.05` | |
+| 18 | 31 | `if c == "vip":` | Sí |
+| 19 | 32 | `t = t - t * CONFIG["DESC_VIP"]` | |
+| 20 | 33 | `if cup != None:` | Sí |
+| 21 | 34 | `if cup == "ENVIO10":` | Sí |
+| 22 | 35 | `t = t - t * 0.10` | |
+| 23 | 36 | `if t < 5000:` | Sí |
+| 24 | 37 | `t = 5000` | |
+| 25 | 38 | `if flag:` | Sí |
+| 26 | 39 | `print("costo:", t)` | |
+| 27 | 40 | `return int(t / 100) * 100` | |
+| 28 | — | Fin (salida) | |
+
+![Grafo de flujo de calc](img/grafo_calc.png)
+
+**Aristas (40):**
+1→2, 1→3, 2→28, 3→4, 3→5, 4→8, 5→6, 5→7, 6→8, 7→8, 8→9, 8→10, 9→14, 10→11, 10→12, 11→14, 12→13, 12→14, 13→14, 14→15, 14→16, 15→16, 16→17, 16→18, 17→18, 18→19, 18→20, 19→20, 20→21, 20→23, 21→22, 21→23, 22→23, 23→24, 23→25, 24→25, 25→26, 25→27, 26→27, 27→28.
+
+### 4.2 Complejidad ciclomática calculada de tres formas
+
+| Forma | Fórmula | Cálculo | V(G) |
+|---|---|---|---|
+| Aristas y nodos | V(G) = E − N + 2 | 40 − 28 + 2 | **14** |
+| Nodos predicado | V(G) = P + 1 | 13 + 1 | **14** |
+| Regiones | V(G) = número de regiones | 13 regiones cerradas + 1 región exterior | **14** |
+
+**Nodos predicado (P = 13):** 1, 3, 5, 8, 10, 12, 14, 16, 18, 20, 21, 23 y 25.
+
+**Regiones:** en un grafo plano, cada nodo predicado con dos salidas cierra una región entre su rama verdadera y su rama falsa. Las 13 regiones cerradas son:
+
+| Región | Nodo predicado que la abre | Caminos que la encierran |
+|---|---|---|
+| R1 | 1 · validación de peso | 1→2→28 y 1→3→…→27→28 |
+| R2 | 3 · tramo 1 | 3→4→8 y 3→5→…→8 |
+| R3 | 5 · tramo 2 | 5→6→8 y 5→7→8 |
+| R4 | 8 · urbana | 8→9→14 y 8→10→…→14 |
+| R5 | 10 · rural | 10→11→14 y 10→12→…→14 |
+| R6 | 12 · nacional | 12→13→14 y 12→14 |
+| R7 | 14 · fin de semana | 14→15→16 y 14→16 |
+| R8 | 16 · frecuente | 16→17→18 y 16→18 |
+| R9 | 18 · vip | 18→19→20 y 18→20 |
+| R10 | 20 · hay cupón | 20→21→…→23 y 20→23 |
+| R11 | 21 · cupón ENVIO10 | 21→22→23 y 21→23 |
+| R12 | 23 · mínimo | 23→24→25 y 23→25 |
+| R13 | 25 · flag | 25→26→27 y 25→27 |
+| R14 | — | Región exterior (fuera del grafo) |
+
+Son 13 regiones cerradas más la exterior: **14 regiones**, lo que coincide con las otras dos fórmulas.
+
+**Interpretación:** V(G) = 14 está en el rango de 11 a 20, que se considera **complejidad alta, riesgo moderado** y difícil de probar. Indica que hacen falta mínimo 14 casos para recorrer todos los caminos independientes y que conviene refactorizar (Parte 6).
+
+_Observación:_ si la condición compuesta `p <= 0 or p > 50` se cuenta como dos condiciones simples (McCabe extendido), la complejidad sube a **15**.
+
+### 4.3 Caminos independientes y casos de prueba
+
+Se toma un camino base y en cada camino nuevo se cambia una decisión, de modo que cada uno agrega al menos una arista que los anteriores no habían recorrido. Todos los casos usan `flag=False`, salvo CB-14.
+
+**Camino base (CB-01):** 6 kg, urbana, normal, día 1, sin cupón.
+
+| Camino | Nodos recorridos | Arista nueva | Entradas (peso, zona, cliente, día, cupón, flag) | Esperado (especificación) | Equivale a |
+|---|---|---|---|---|---|
+| CB-01 | 1-3-5-6-8-9-14-16-18-20-23-25-27-28 | (base) | 6, urbana, normal, 1, —, False | $9.000 | CP-20 |
+| CB-02 | 1-2-28 | 1→2 | 0, urbana, normal, 1, —, False | Error "peso inválido" | CP-01 |
+| CB-03 | 1-3-**4**-8-9-14-16-18-20-23-25-27-28 | 3→4 | 2, urbana, normal, 1, —, False | $6.000 | CP-02 (mismo camino) |
+| CB-04 | 1-3-5-**7**-8-9-14-…-28 | 5→7 | 12,5, urbana, normal, 1, —, False | $11.000 | CP-10 |
+| CB-05 | 1-3-5-6-8-**10-11**-14-…-28 | 10→11 | 6, rural, normal, 1, —, False | $10.800 | CP-15 (mismo camino) |
+| CB-06 | 1-3-5-6-8-10-**12-13**-14-…-28 | 12→13 | 6, nacional, normal, 1, —, False | $12.600 | CP-16 (mismo camino) |
+| CB-07 | 1-3-5-6-8-10-**12-14**-…-28 | 12→14 | 6, insular, normal, 1, —, False | Error (zona inválida) | CP-17 |
+| CB-08 | 1-3-5-6-8-9-14-**15**-16-…-28 | 14→15 | 6, urbana, normal, 7, —, False | $11.000 | CP-22 |
+| CB-09 | …-14-16-**17**-18-…-28 | 16→17 | 6, urbana, frecuente, 1, —, False | $8.600 | CP-23 |
+| CB-10 | …-16-18-**19**-20-…-28 | 18→19 | 6, urbana, vip, 1, —, False | $7.200 | TD-13 (nuevo) |
+| CB-11 | …-18-20-**21-23**-25-27-28 | 21→23 | 6, urbana, normal, 1, GRATIS, False | $9.000 | CP-27 |
+| CB-12 | …-18-20-21-**22**-23-25-27-28 | 21→22 | 6, urbana, normal, 1, ENVIO10, False | $8.100 | TD-03 (nuevo) |
+| CB-13 | 1-3-4-8-9-14-16-18-19-20-23-**24**-25-27-28 | 23→24 | 2, urbana, vip, 1, —, False | $5.000 | CP-29 |
+| CB-14 | …-23-25-**26**-27-28 | 25→26 | 6, urbana, normal, 1, —, **True** | $9.000 e imprime `costo: 9000` | (nuevo) |
+
+Son 14 caminos, igual a V(G). Los casos CB-10, CB-12 y CB-14 no estaban en la matriz de caja negra y se agregan a la suite automatizada.
+
+### 4.4 Cobertura de sentencias y de ramas
+
+| Criterio | Qué exige | Casos que la logran | Resultado medido sobre v1.0.0 |
+|---|---|---|---|
+| **Cobertura de sentencias** | Ejecutar al menos una vez cada línea de `calc`. | Basta con **12 casos**: CB-01, 02, 03, 04, 05, 06, 08, 09, 10, 12, 13 y 14. CB-07 y CB-11 no agregan líneas nuevas: solo recorren la rama falsa de un `if` sin `else`. | 100 % de sentencias, 2 ramas sin cubrir (12→14 y 21→23) |
+| **Cobertura de ramas** | Recorrer la salida verdadera y la falsa de los 13 predicados (26 ramas). | Los **14 caminos**, CB-01 a CB-14. CB-07 cubre 12→14 (zona que no es ninguna de las tres) y CB-11 cubre 21→23 (cupón distinto de ENVIO10). | 100 % de sentencias y 100 % de ramas |
+
+**Conclusión:** la cobertura de ramas incluye a la de sentencias, pero no al revés. Con 12 casos se ejecutan todas las líneas y aun así quedan 2 decisiones sin probar por su lado falso, y una de ellas, la 12→14, es justamente donde se esconde el defecto de la zona inválida.
+
+**Relación con la caja negra:** los 35 casos de la Parte 3 nunca usan `flag=True`, así que por sí solos no cubren la línea 39 (`print`). Por eso se agregan los casos de caja blanca: así la suite completa llega al 100 % de sentencias y de ramas.
