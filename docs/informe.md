@@ -558,11 +558,12 @@ pytest -v --cov=envios --cov-branch --cov-report=term-missing --cov-report=html
 
 **Captura 1.** Salida de `pytest -v` contra v1.0.0: 16 fallan, 22 pasan.
 
-![Pytest contra v1.0.0](covertura.png)
+![Pytest contra v1.0.0](evidencias/covertura.png)
+
 
 **Captura 2.** Reporte HTML de cobertura contra v1.0.0: 100 % de sentencias y de ramas.
 
-![Cobertura v1.0.0](pytest.png)
+![Cobertura v1.0.0](evidencias/pytest.png)
 
 | Caso | Esperado | Obtenido en v1.0.0 | Defecto |
 |---|---|---|---|
