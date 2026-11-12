@@ -1,6 +1,6 @@
 # envios.py
 CONFIG = {
-    "L1": 4,                  # <- pon tus valores
+    "L1": 4,               # <- pon tus valores
     "L2": 10,
     "RECARGO_RURAL": 0.20,    # como fracción, ej. 0.15
     "RECARGO_NACIONAL": 0.40,
@@ -10,7 +10,7 @@ CONFIG = {
 
 def calc(p, z, c, d, cup=None, flag=False):
     if p <= 0 or p > 50:
-        raise ValueError("peso invalido")
+        raise ValueError("peso inválido")
     if p <= CONFIG["L1"]:
         t = 6000
     elif p <= CONFIG["L2"]:
