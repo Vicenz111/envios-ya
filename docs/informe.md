@@ -800,3 +800,323 @@ Sobre DEF-04: se usa `math.floor(x + 0.5)` y no `round()` porque `round()` de Py
 | Casos que pasan | 22 / 38 | 38 / 38 | 61 / 61 |
 
 **Análisis:** el número de líneas aumentó porque se agregaron constantes con nombre, cuatro clases, documentación y sangrías claras. Ese aumento es deliberado: cada función es ahora pequeña (complejidad entre 1 y 3, calificación A en radon) y se puede probar por separado. La complejidad de la función principal bajó de 14 a 1. Corregir los defectos sin refactorizar la había subido a 17, lo que muestra cómo se acumula la deuda técnica cuando solo se parcha. La cobertura se mantuvo en 100 %, ahora con pruebas de unidad e integración.
+
+---
+
+## Parte 7 · Gestión de configuración
+
+### 7.1 Etiqueta del código heredado
+
+El código heredado quedó en el primer commit con la etiqueta anotada `v1.0.0`:
+`git tag -a v1.0.0 -m "Código heredado original"`.
+
+### 7.2 Ramas e integración
+
+| Rama | Propósito | Integración |
+|---|---|---|
+| `test/suite` | Suite de 38 casos en pytest | `merge --no-ff` a `main` |
+| `fix/DEF-07`, `fix/DEF-01`, `fix/DEF-02`, `fix/DEF-03`, `fix/DEF-04`, `fix/DEF-05`, `fix/DEF-06` | Una corrección por defecto, con un commit que referencia el ID | `merge --no-ff` a `main`, con regresión después de cada merge |
+| `refactor/estrategia` | Funciones extraídas, constantes, eliminación de `flag`, patrón Estrategia y pruebas de unidad | `merge --no-ff` a `main` |
+| `feature/hora-pico` | Solicitud de cambio de la Parte 8 (primero las pruebas, después el código) | `merge --no-ff` a `main` |
+
+Se usó `--no-ff` para que cada rama quede visible en el historial como un merge propio, aunque se pudiera integrar en avance rápido.
+
+### 7.3 Versionado semántico
+
+Formato MAJOR.MINOR.PATCH: MAJOR para cambios incompatibles, MINOR para funcionalidad nueva compatible y PATCH para correcciones compatibles.
+
+| Versión | Contenido | Justificación |
+|---|---|---|
+| `v1.0.0` | Código heredado | Línea base. |
+| **`v2.0.0`** | 7 correcciones + refactorización + eliminación de `flag` | **MAJOR.** Quitar `flag` cambia la firma pública de `calc`: quien la llamaba con 6 argumentos (`calc(p, z, c, d, cup, True)`) ahora recibe `TypeError`. Además, entradas que antes devolvían un precio (45 kg, zona "insular", día 8) ahora lanzan `ValueError`. Si solo se hubieran corregido los defectos sin tocar la interfaz, habría sido un PATCH (1.0.1). Pero un cambio incompatible obliga a subir MAJOR, aunque se conserve el nombre `calc` como alias. |
+| **`v2.1.0`** | Recargo de hora pico | **MINOR.** Agrega funcionalidad sin romper nada: `hora` es opcional y, si no se envía, el resultado es idéntico al de v2.0.0 (prueba HP-11). |
+
+**Respuesta a la pregunta del enunciado:** sí, quitar `flag` hace que la versión sea MAJOR, porque cambia la interfaz pública de forma incompatible con el código que ya la usa.
+
+### 7.4 CHANGELOG y notas de la versión
+
+- `CHANGELOG.md` en la raíz del repositorio, en formato *Keep a Changelog*: secciones `Added`, `Changed`, `Fixed` y `Removed` por versión, fechas en ISO 8601 y enlaces de comparación entre etiquetas.
+- `NOTAS_VERSION.md`: notas dirigidas a quien usa la función. Explican qué se rompe, cómo migrar y qué cambia en los precios.
+
+### 7.5 Historial (`git log --oneline --graph --all`)
+
+```
+(* be26988 (HEAD -> main, tag: v2.1.0, origin/main) docs: CHANGELOG v2.1.0
+*   2740e49 Merge branch 'feature/hora-pico'
+|\
+| * 3a85b6d (origin/feature/hora-pico, feature/hora-pico) feat: recargo de hora pico del 8% entre 17 y 19 (solicitud decambio 2)
+| * bd773d4 test: pruebas de hora pico escritas antes de implementar (fallan)
+|/  
+* 3ff9048 (tag: v2.0.0) docs: CHANGELOG y notas de la versión 2.0.0
+* 48a78cb docs: parte 6 - malos olores, clasificación, refactorización, regresión y comparación
+*   4295184 Merge branch 'refactor/estrategia'
+:...skipping...
+* be26988 (HEAD -> main, tag: v2.1.0, origin/main) docs: CHANGELOG v2.1.0
+*   2740e49 Merge branch 'feature/hora-pico'
+|\  
+| * 3a85b6d (origin/feature/hora-pico, feature/hora-pico) feat: recargo de hora pico del 8% entre 17 y 19 (solicitud de cambio 2)
+| * bd773d4 test: pruebas de hora pico escritas antes de implementar (fallan)
+|/  
+* 3ff9048 (tag: v2.0.0) docs: CHANGELOG y notas de la versión 2.0.0
+* 48a78cb docs: parte 6 - malos olores, clasificación, refactorización, regresión y comparación
+*   4295184 Merge branch 'refactor/estrategia'
+|\  
+| * e715cf2 (origin/refactor/estrategia, refactor/estrategia) test: pruebas de unidad para funciones extraídas y estrategias de zona
+| * f0893df refactor: extraer funciones, constantes con nombre, eliminar flag y aplicar patrón Estrategia a zonas
+|/  
+*   ccf311c Merge branch 'fix/DEF-06'
+|\  
+| * adc770a (origin/fix/DEF-06, fix/DEF-06) fix(DEF-06): error si el día no está entre 1 y 7 (R2)
+|/  
+*   96108bf Merge branch 'fix/DEF-05'
+|\  
+| * 3daa003 (origin/fix/DEF-05, fix/DEF-05) fix(DEF-05): error si la zona no es válida (R2)
+|/
+*   dfdd71a Merge branch 'fix/DEF-04'
+:
+* be26988 (HEAD -> main, tag: v2.1.0, origin/main) docs: CHANGELOG v2.1.0
+*   2740e49 Merge branch 'feature/hora-pico'
+|\  
+| * 3a85b6d (origin/feature/hora-pico, feature/hora-pico) feat: recargo de hora pico del 8% entre 17 y 19 (solicitud de cambio 2)
+| * bd773d4 test: pruebas de hora pico escritas antes de implementar (fallan)
+|/
+* 3ff9048 (tag: v2.0.0) docs: CHANGELOG y notas de la versión 2.0.0
+* 48a78cb docs: parte 6 - malos olores, clasificación, refactorización, regresión y comparación
+*   4295184 Merge branch 'refactor/estrategia'
+|\  
+| * e715cf2 (origin/refactor/estrategia, refactor/estrategia) test: pruebas de unidad para funciones extraídas y estrategias de zona
+| * f0893df refactor: extraer funciones, constantes con nombre, eliminar flag y aplicar patrón Estrategia a zonas
+|/  
+*   ccf311c Merge branch 'fix/DEF-06'
+|\  
+:
+* be26988 (HEAD -> main, tag: v2.1.0, origin/main) docs: CHANGELOG v2.1.0
+:
+* be26988 (HEAD -> main, tag: v2.1.0, origin/main) docs: CHANGELOG v2.1.0
+*   2740e49 Merge branch 'feature/hora-pico'
+|\  
+| * 3a85b6d (origin/feature/hora-pico, feature/hora-pico) feat: recargo de hora pico del 8% entre 17 y 19 (solicitud de cambio 2)
+| * bd773d4 test: pruebas de hora pico escritas antes de implementar (fallan)
+|/  
+* 3ff9048 (tag: v2.0.0) docs: CHANGELOG y notas de la versión 2.0.0
+* 48a78cb docs: parte 6 - malos olores, clasificación, refactorización, regresión y comparación
+*   4295184 Merge branch 'refactor/estrategia'
+|\  
+| * e715cf2 (origin/refactor/estrategia, refactor/estrategia) test: pruebas de unidad para funciones extraídas y estrategias de zona
+| * f0893df refactor: extraer funciones, constantes con nombre, eliminar flag y aplicar patrón Estrategia a zonas
+|/  
+*   ccf311c Merge branch 'fix/DEF-06'
+|\  
+| * adc770a (origin/fix/DEF-06, fix/DEF-06) fix(DEF-06): error si el día no está entre 1 y 7 (R2)
+|/
+*   96108bf Merge branch 'fix/DEF-05'
+|\
+| * 3daa003 (origin/fix/DEF-05, fix/DEF-05) fix(DEF-05): error si la zona no es válida (R2)
+|/  
+:...skipping...
+* be26988 (HEAD -> main, tag: v2.1.0, origin/main) docs: CHANGELOG v2.1.0
+*   2740e49 Merge branch 'feature/hora-pico'
+|\  
+| * 3a85b6d (origin/feature/hora-pico, feature/hora-pico) feat: recargo de hora pico del 8% entre 17 y 19 (solicitud decambio 2)
+| * bd773d4 test: pruebas de hora pico escritas antes de implementar (fallan)
+|/
+* 3ff9048 (tag: v2.0.0) docs: CHANGELOG y notas de la versión 2.0.0
+* 48a78cb docs: parte 6 - malos olores, clasificación, refactorización, regresión y comparación
+*   4295184 Merge branch 'refactor/estrategia'
+|\  
+| * e715cf2 (origin/refactor/estrategia, refactor/estrategia) test: pruebas de unidad para funciones extraídas y estrategias de zona
+| * f0893df refactor: extraer funciones, constantes con nombre, eliminar flag y aplicar patrón Estrategia a zonas
+|/  
+*   ccf311c Merge branch 'fix/DEF-06'
+|\  
+| * adc770a (origin/fix/DEF-06, fix/DEF-06) fix(DEF-06): error si el día no está entre 1 y 7 (R2)
+|/  
+*   96108bf Merge branch 'fix/DEF-05'
+|\  
+| * 3daa003 (origin/fix/DEF-05, fix/DEF-05) fix(DEF-05): error si la zona no es válida (R2)
+|/  
+*   dfdd71a Merge branch 'fix/DEF-04'
+|\  
+| * 93bd0c9 (origin/fix/DEF-04, fix/DEF-04) fix(DEF-04): redondeo al múltiplo de 100 más cercano (R8)
+:
+* be26988 (HEAD -> main, tag: v2.1.0, origin/main) docs: CHANGELOG v2.1.0
+*   2740e49 Merge branch 'feature/hora-pico'
+|\  
+| * 3a85b6d (origin/feature/hora-pico, feature/hora-pico) feat: recargo de hora pico del 8% entre 17 y 19 (solicitud de cambio 2)
+| * bd773d4 test: pruebas de hora pico escritas antes de implementar (fallan)
+|/  
+* 3ff9048 (tag: v2.0.0) docs: CHANGELOG y notas de la versión 2.0.0
+* 48a78cb docs: parte 6 - malos olores, clasificación, refactorización, regresión y comparación
+*   4295184 Merge branch 'refactor/estrategia'
+:
+* be26988 (HEAD -> main, tag: v2.1.0, origin/main) docs: CHANGELOG v2.1.0
+*   2740e49 Merge branch 'feature/hora-pico'
+|\  
+| * 3a85b6d (origin/feature/hora-pico, feature/hora-pico) feat: recargo de hora pico del 8% entre 17 y 19 (solicitud de cambio 2)
+| * bd773d4 test: pruebas de hora pico escritas antes de implementar (fallan)
+:
+* be26988 (HEAD -> main, tag: v2.1.0, origin/main) docs: CHANGELOG v2.1.0
+*   2740e49 Merge branch 'feature/hora-pico'
+|\  
+:
+* be26988 (HEAD -> main, tag: v2.1.0, origin/main) docs: CHANGELOG v2.1.0
+*   2740e49 Merge branch 'feature/hora-pico'
+|\  
+| * 3a85b6d (origin/feature/hora-pico, feature/hora-pico) feat: recargo de hora pico del 8% entre 17 y 19 (solicitud de:
+|\  
+| * 3a85b6d (origin/feature/hora-pico, feature/hora-pico) feat: recargo de hora pico del 8% entre 17 y 19 (solicitud de cambio 2)
+| * bd773d4 test: pruebas de hora pico escritas antes de implementar (fallan)
+|/
+:
+|\  
+| * 3a85b6d (origin/feature/hora-pico, feature/hora-pico) feat: recargo de hora pico del 8% entre 17 y 19 (solicitud decambio 2)
+| * bd773d4 test: pruebas de hora pico escritas antes de implementar (fallan)
+|/  
+* 3ff9048 (tag: v2.0.0) docs: CHANGELOG y notas de la versión 2.0.0
+* 48a78cb docs: parte 6 - malos olores, clasificación, refactorización, regresión y comparación
+*   4295184 Merge branch 'refactor/estrategia'
+|\  
+| * e715cf2 (origin/refactor/estrategia, refactor/estrategia) test: pruebas de unidad para funciones extraídas y estrategias de zona
+| * f0893df refactor: extraer funciones, constantes con nombre, eliminar flag y aplicar patrón Estrategia a zonas
+|/  
+*   ccf311c Merge branch 'fix/DEF-06'
+|\  
+| * adc770a (origin/fix/DEF-06, fix/DEF-06) fix(DEF-06): error si el día no está entre 1 y 7 (R2)
+|/  
+*   96108bf Merge branch 'fix/DEF-05'
+|\  
+:
+|\  
+| * 3a85b6d (origin/feature/hora-pico, feature/hora-pico) feat: recargo de hora pico del 8% entre 17 y 19 (solicitud de cambio 2)
+| * bd773d4 test: pruebas de hora pico escritas antes de implementar (fallan)
+|/  
+* 3ff9048 (tag: v2.0.0) docs: CHANGELOG y notas de la versión 2.0.0
+* 48a78cb docs: parte 6 - malos olores, clasificación, refactorización, regresión y comparación
+*   4295184 Merge branch 'refactor/estrategia'
+|\  
+| * e715cf2 (origin/refactor/estrategia, refactor/estrategia) test: pruebas de unidad para funciones extraídas y estrategias de zona
+| * f0893df refactor: extraer funciones, constantes con nombre, eliminar flag y aplicar patrón Estrategia a zonas
+|/
+*   ccf311c Merge branch 'fix/DEF-06'
+|\  
+| * adc770a (origin/fix/DEF-06, fix/DEF-06) fix(DEF-06): error si el día no está entre 1 y 7 (R2)
+|/  
+*   96108bf Merge branch 'fix/DEF-05'
+|\  
+| * 3daa003 (origin/fix/DEF-05, fix/DEF-05) fix(DEF-05): error si la zona no es válida (R2)
+|/  
+*   dfdd71a Merge branch 'fix/DEF-04'
+|\  
+| * 93bd0c9 (origin/fix/DEF-04, fix/DEF-04) fix(DEF-04): redondeo al múltiplo de 100 más cercano (R8)
+|/  
+*   6ee1a1c Merge branch 'fix/DEF-03'
+|\
+| * 72f57c2 (origin/fix/DEF-03, fix/DEF-03) fix(DEF-03): aplicar solo el mayor descuento entre cliente y cupón (R6)
+|/  
+*   1f079a4 Merge branch 'fix/DEF-02'
+|\
+| * 0352802 (origin/fix/DEF-02, fix/DEF-02) fix(DEF-02): cobrar recargo de fin de semana también el sábado (R5)
+|/  
+*   c3038c7 Merge branch 'fix/DEF-01'
+|\  
+| * f562220 (origin/fix/DEF-01, fix/DEF-01) fix(DEF-01): peso máximo 40 kg (R1)
+|/
+*   c1dd3be Merge branch 'fix/DEF-07'
+|\
+| * f76535c (origin/fix/DEF-07, fix/DEF-07) fix(DEF-07): mensaje peso inválido con tilde (R1)
+|/
+* 070a366 docs: parte 5 - reporte de 7 defectos y métricas de prueba
+* d05fb09 docs: parte 5 - reporte de 7 defectos y métricas de prueba
+* 19d38b4 docs: parte 5 - reporte de 7 defectos, métricas y evidencias de ejecución
+* 76abb95 (origin/test/suite, test/suite) docs: parte 4 - grafo de flujo, complejidad ciclomática, caminos y cobertura
+* add1fb3 docs: parte 3 - particiones, valores límite, tabla de decisión y 35 casos de prueba
+* ba8f5c2 docs: parte 2 - plan de pruebas (niveles, estrategia, riesgos, criterios)
+* ce52552 docs: parte 1 - especificación R1-R8, historias de usuario y matriz de trazabilidad
+* 5a22edf chore: agrega .gitignore y dependencias de pruebas (pytest, pytest-cov)
+* 5cd3994 (tag: v1.0.0) chore: código heredado v1.0.0 con CONFIG del estudiante 0182220060
+(END))
+```
+
+---
+
+## Parte 8 · Solicitud de cambio y análisis de impacto
+
+**Solicitud asignada:** (A + F) mod 3 = (2 + 0) mod 3 = **2 → Hora pico.** Se agrega el parámetro `hora` (0 a 23). Entre las 17 y las 19, inclusive, hay un recargo del 8 %, que se calcula después del recargo por zona.
+
+**Nuevo requisito:**
+
+| ID | Regla |
+|---|---|
+| **R9** | La función recibe `hora` (entero de 0 a 23, opcional). Si la hora está entre 17 y 19 inclusive, el valor después del recargo por zona se incrementa en **8 %**. Una hora fuera de 0 a 23 lanza el error "hora inválida". Sin hora no hay recargo. |
+
+**Nuevo orden del cálculo:** tarifa base → recargo por zona → **recargo hora pico** → fin de semana → descuento → mínimo → redondeo.
+
+### 8.1 Análisis de impacto (usando la matriz de trazabilidad)
+
+| Elemento | ¿Se afecta? | Detalle |
+|---|---|---|
+| **R2** · validaciones | Sí | Se agrega la validación de la hora (0 a 23). |
+| **R4** · recargo por zona | Sí (orden) | El recargo de hora pico se aplica sobre el valor que deja R4. |
+| **R5** · fin de semana | Sí (orden) | Los $2.000 ahora se suman sobre un valor que puede incluir la hora pico. |
+| **R6, R8** · descuento, mínimo, redondeo | Indirecto | Reciben un valor mayor; las reglas no cambian. |
+| R1, R3, R7 | No | Peso, tramos y cupón inexistente no cambian. |
+| **HU-02** · tarifa según peso, zona y día | Sí | Se agrega el criterio CA-02.7: *Dado 6 kg, urbana, normal, día 1, hora 18, cuando se calcula, entonces se aplica +8 %: $9.700.* |
+| HU-01 | Sí | Se agrega el criterio CA-01.6: *Dado hora 24, entonces error "hora inválida".* |
+| HU-03 | No | |
+| Casos de prueba existentes (CP-01 a CP-35, CB-xx, unidades) | No cambian | No envían `hora`, así que sus resultados se mantienen; se ejecutan como regresión. |
+| Casos nuevos | Sí | HP-01 a HP-13 en `tests/test_hora_pico.py`. |
+| **Código** | Sí | `envios.py`: constantes `HORAS_VALIDAS`, `HORA_PICO_INICIO`, `HORA_PICO_FIN` y `RECARGO_HORA_PICO`; funciones nuevas `validar_hora` y `aplicar_recargo_hora_pico`; firma de `calcular_costo` con `*, hora=None`. Las estrategias de zona **no se modifican**. |
+| Documentación | Sí | Especificación (R9), matriz de trazabilidad, CHANGELOG (2.1.0), notas de la versión. |
+
+**Matriz de trazabilidad (fila nueva):**
+
+| Requisito | Historia | Criterios | Casos de prueba |
+|---|---|---|---|
+| R9 · Recargo hora pico | HU-02, HU-01 | CA-02.7, CA-01.6 | HP-01 a HP-13 |
+
+**Decisión de diseño:** `hora` se declaró **solo por nombre** (`*, hora=None`). Así, una llamada antigua con 6 argumentos posicionales (`calc(..., None, True)`) sigue fallando con `TypeError` y no se interpreta por error `True` como la hora 1.
+
+### 8.2 Tipo de mantenimiento
+
+**Perfectivo:** el negocio pide una funcionalidad nueva (un recargo que antes no existía). No corrige un defecto (no es correctivo) ni responde a un cambio del entorno técnico (no es adaptativo).
+
+### 8.3 Implementación con las pruebas primero
+
+1. Rama `feature/hora-pico`.
+2. Se escribió `tests/test_hora_pico.py` con 13 casos. Contra v2.0.0: **12 fallan** (`TypeError`: la función no acepta `hora`) y solo pasa HP-11 (sin hora). Se hizo commit de las pruebas en rojo.
+3. Se implementó el cambio en `envios.py`: **74 pasan**, 100 % de sentencias y de ramas. La complejidad de `calcular_costo` sigue en 1; las funciones nuevas tienen complejidad 3.
+4. Merge a `main`, CHANGELOG actualizado y etiqueta `v2.1.0`.
+
+**Casos nuevos (resultado esperado calculado a mano):**
+
+| ID | Entradas (peso, zona, cliente, día, cupón, hora) | Cálculo | Esperado |
+|---|---|---|---|
+| HP-01 | 6, urbana, normal, 1, —, 16 | fuera de hora pico | $9.000 |
+| HP-02 | 6, urbana, normal, 1, —, **17** | 9.000 × 1,08 = 9.720 | $9.700 |
+| HP-03 | 6, urbana, normal, 1, —, 18 | 9.000 × 1,08 = 9.720 | $9.700 |
+| HP-04 | 6, urbana, normal, 1, —, **19** | 9.000 × 1,08 = 9.720 | $9.700 |
+| HP-05 | 6, urbana, normal, 1, —, **20** | fuera de hora pico | $9.000 |
+| HP-06 | 6, urbana, normal, 1, —, 0 | límite inferior válido | $9.000 |
+| HP-07 | 6, urbana, normal, 1, —, 23 | límite superior válido | $9.000 |
+| HP-08 | 6, rural, normal, 1, —, 18 | 9.000 × 1,20 = 10.800 × 1,08 = 11.664 | $11.700 |
+| HP-09 | 6, urbana, normal, 6, —, 18 | 9.000 × 1,08 = 9.720 + 2.000 = 11.720 | $11.700 |
+| HP-10 | 4, rural, vip, 6, ENVIO10, 17 | 6.000 × 1,20 = 7.200 × 1,08 = 7.776 + 2.000 = 9.776 × 0,80 = 7.820,8 | $7.800 |
+| HP-11 | 6, urbana, normal, 1, —, (sin hora) | compatibilidad con v2.0.0 | $9.000 |
+| HP-12 | 6, urbana, normal, 1, —, −1 | hora inválida | Error "hora inválida" |
+| HP-13 | 6, urbana, normal, 1, —, 24 | hora inválida | Error "hora inválida" |
+
+**Cálculo paso a paso de HP-10:**
+1. 4 ≤ 4 → tramo 1 → $6.000
+2. Rural +20 % → 6.000 × 1,20 = $7.200
+3. Hora 17, dentro de la hora pico → 7.200 × 1,08 = $7.776
+4. Sábado, antes del descuento → 7.776 + 2.000 = $9.776
+5. Solo el mayor descuento: VIP 20 % contra cupón 10 % → 9.776 × 0,80 = $7.820,8
+6. Mayor que $5.000; se redondea a $7.800 (le sobran 20,8, menos de 50)
+
+**Captura 5.** Pruebas de hora pico fallando antes de implementar.
+
+![fallando](evidencias/captura5.png)
+
+**Captura 6.** Regresión completa después de implementar: 74 pasan, 100 % de cobertura.
+
+![completo](evidencias/captura6.png)
