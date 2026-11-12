@@ -22,6 +22,11 @@ DIAS_VALIDOS = range(1, 8)       # 1 a 7
 DIAS_FIN_DE_SEMANA = (6, 7)      # sábado y domingo
 RECARGO_FIN_DE_SEMANA = 2000     # S, se suma ANTES de los descuentos (E par)
 
+HORAS_VALIDAS = range(0, 24)     # 0 a 23
+HORA_PICO_INICIO = 17            # inclusive
+HORA_PICO_FIN = 19               # inclusive
+RECARGO_HORA_PICO = 0.08         # después del recargo por zona
+
 DESCUENTOS_CLIENTE = {"normal": 0.0, "frecuente": 0.05, "vip": 0.20}  # V = 20 %
 CUPONES = {"ENVIO10": 0.10}      # un cupón que no existe se ignora (F par)
 
@@ -81,6 +86,17 @@ def validar_dia(dia: int) -> None:
         raise ValueError("día inválido")
 
 
+def validar_hora(hora: int | None) -> None:
+    if hora is not None and hora not in HORAS_VALIDAS:
+        raise ValueError("hora inválida")
+
+
+def aplicar_recargo_hora_pico(costo: float, hora: int | None) -> float:
+    if hora is not None and HORA_PICO_INICIO <= hora <= HORA_PICO_FIN:
+        return costo * (1 + RECARGO_HORA_PICO)
+    return costo
+
+
 def tarifa_base(peso: float) -> float:
     if peso <= LIMITE_TRAMO_1:
         return TARIFA_TRAMO_1
@@ -110,12 +126,14 @@ def redondear(costo: float) -> int:
 # Función principal
 # ---------------------------------------------------------------------------
 def calcular_costo(peso: float, zona: str, cliente: str, dia: int,
-                   cupon: str | None = None) -> int:
+                   cupon: str | None = None, *, hora: int | None = None) -> int:
     validar_peso(peso)
     estrategia_zona = obtener_estrategia_zona(zona)
     validar_dia(dia)
+    validar_hora(hora)
 
     costo = estrategia_zona.aplicar_recargo(tarifa_base(peso))
+    costo = aplicar_recargo_hora_pico(costo, hora)
     costo += recargo_fin_de_semana(dia)
     costo *= 1 - porcentaje_descuento(cliente, cupon)
     costo = max(costo, COSTO_MINIMO)
