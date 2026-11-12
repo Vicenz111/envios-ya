@@ -7,6 +7,14 @@ y el proyecto usa [Versionado Semántico](https://semver.org/lang/es/).
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-11-11
+
+### Added
+- Parámetro opcional `hora` (0 a 23, solo por nombre: `hora=`) en `calcular_costo` / `calc`.
+- Recargo de hora pico del 8 % entre las 17 y las 19 (inclusive), calculado después del recargo por zona (solicitud de cambio 2).
+- Validación: una hora fuera de 0 a 23 lanza `ValueError("hora inválida")`.
+- Pruebas `tests/test_hora_pico.py` (HP-01 a HP-13), escritas antes de la implementación.
+
 ## [2.0.0] - 2026-11-11
 
 ### Changed
@@ -32,6 +40,7 @@ y el proyecto usa [Versionado Semántico](https://semver.org/lang/es/).
 ### Added
 - Código heredado de EnvíaYa (`calc`) con la configuración del estudiante 0182220060.
 
-[Unreleased]: https://github.com/TU_USUARIO/envios-ya/compare/v2.0.0...HEAD
+[Unreleased]: https://github.com/Vicenz111/envios-ya/compare/v2.1.0...HEAD
+[2.1.0]: https://github.com/Vicenz111/envios-ya/compare/v2.0.0...v2.1.0
 [2.0.0]: https://github.com/Vicenz111/envios-ya/compare/v1.0.0...v2.0.0
 [1.0.0]: https://github.com/Vicenz111/envios-ya/releases/tag/v1.0.0
