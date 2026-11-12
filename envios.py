@@ -9,7 +9,7 @@ CONFIG = {
 }
 
 def calc(p, z, c, d, cup=None, flag=False):
-    if p <= 0 or p > 50:
+    if p <= 0 or p > 40:
         raise ValueError("peso inválido")
     if p <= CONFIG["L1"]:
         t = 6000
