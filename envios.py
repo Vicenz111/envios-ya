@@ -26,13 +26,14 @@ def calc(p, z, c, d, cup=None, flag=False):
     # fin de semana
     if d == 6 or d == 7:
         t = t + CONFIG["RECARGO_FINDE"]
+    desc = 0
     if c == "frecuente":
-        t = t - t * 0.05
+        desc = 0.05
     if c == "vip":
-        t = t - t * CONFIG["DESC_VIP"]
-    if cup != None:
-        if cup == "ENVIO10":
-             t = t - t * 0.10
+        desc = CONFIG["DESC_VIP"]
+    if cup == "ENVIO10":
+        desc = max(desc, 0.10)
+    t = t - t * desc
     if t < 5000:
         t = 5000
     if flag:
