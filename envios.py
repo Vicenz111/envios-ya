@@ -25,6 +25,8 @@ def calc(p, z, c, d, cup=None, flag=False):
         t = t + t * CONFIG["RECARGO_RURAL"]
     elif z == "nacional":
         t = t + t * CONFIG["RECARGO_NACIONAL"]
+    else:
+        raise ValueError("zona inválida")
     # fin de semana
     if d == 6 or d == 7:
         t = t + CONFIG["RECARGO_FINDE"]
